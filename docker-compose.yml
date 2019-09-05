@@ -1,0 +1,90 @@
+#!/usr/bin/env docker-compose -p sql -f
+
+version: "3.7"
+
+volumes:
+  mysql_data:
+    driver: local
+  proxy_data:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
+    internal: false
+    external: false
+
+services:
+
+  # ssltest:
+  #   tty: true
+  #   stdin_open: true
+  #   image: debian:stable
+  #   command: bash -c 'apt update && apt install -y openssl && sleep 30 && echo | openssl s_client -starttls mysql -connect $$HOST:$$PORT'
+  #   networks:
+  #     - default
+  #   environment:
+  #     HOST: proxy
+  #     PORT: 6033
+
+  # nginx:
+  #   image: nginx
+  #   restart: on-failure
+  #   command: nginx -t
+  #   networks:
+  #     - default
+  #   ports:
+  #     - 23306:3306
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./:/data
+
+  mysql: # 5.6.37
+    image: percona:5.6.37
+    restart: on-failure
+    #command: mysqld --verbose --default-authentication-plugin=sha256_password
+    networks:
+      - default
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./:/data
+      - ./keys/_pub.pem:/var/lib/mysql/public_key.pem:rw
+      - ./keys/_priv.pem:/var/lib/mysql/private_key.pem:rw
+      - ./sha256.cnf:/etc/mysql/conf.d/sha256.cnf:ro
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test
+      MYSQL_PASSWORD: hello
+      MYSQL_USER: hello
+    healthcheck:
+      test: mysql -h127.0.0.1 -uroot -proot -e"show databases;"
+      interval: 1m
+      timeout: 10s
+      retries: 3
+
+  proxy: # 1.4.5
+    image: proxysql #:1.4.5
+    restart: on-failure
+    working_dir: /
+    depends_on:
+      - mysql
+    networks:
+      - default
+    ports:
+      - 16080:6080
+      - 13306:3306
+      - 16032:6032
+      - 16033:6033
+    volumes:
+      - proxy_data:/var/lib/proxysql
+      #- ./:/data
+      #- ./keys/_pub.pem:/public.pem:ro
+      - ./lib:/usr/local/lib/plugin:ro
+      - ./proxysql.cnf:/etc/proxysql.cnf:ro
+      - ./lib/sha256_password.so:/lib/mariadb/plugin/sha256_password.so:ro
+      - ./lib/libssl.so.1.0.0:/lib/x86_64-linux-gnu/libssl.so.1.0.0:ro
+      - ./lib/libcrypto.so.1.0.0:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0:ro
