@@ -67,9 +67,9 @@ services:
       retries: 3
 
   proxy: # 1.4.5
-    image: proxysql #:1.4.5
+    image: proxysql:centos #:1.4.5
     restart: on-failure
-    working_dir: /
+    working_dir: /var/lib/proxysql
     depends_on:
       - mysql
     networks:
@@ -83,8 +83,9 @@ services:
       - proxy_data:/var/lib/proxysql
       #- ./:/data
       #- ./keys/_pub.pem:/public.pem:ro
-      - ./lib:/usr/local/lib/plugin:ro
+      #- ./lib:/usr/local/lib/plugin:ro
       - ./proxysql.cnf:/etc/proxysql.cnf:ro
-      - ./lib/sha256_password.so:/lib/mariadb/plugin/sha256_password.so:ro
-      - ./lib/libssl.so.1.0.0:/lib/x86_64-linux-gnu/libssl.so.1.0.0:ro
-      - ./lib/libcrypto.so.1.0.0:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0:ro
+      #- ./lib/sha256_password.so:/lib/mariadb/plugin/sha256_password.so:ro
+      #- ./lib/libssl.so.1.0.0:/lib/x86_64-linux-gnu/libssl.so.1.0.0:ro
+      #- ./lib/libcrypto.so.1.0.0:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0:ro
+      #- ./lib/sha256_password.so:/usr/local/lib/plugin/sha256_password.so:ro
