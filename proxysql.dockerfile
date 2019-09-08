@@ -12,10 +12,18 @@ RUN make -j$(nproc)
 RUN make -j$(nproc) install
 WORKDIR /data
 COPY *.c ./
+RUN yum install -y glibc-devel-static glibc-static libstdc++-static zlib-static openssl-static  krb5-static krb5-devel  krb5-devel-static openssl-static-devel
 RUN cc -o client client.c -std=c99 \
 	-I/usr/include/mysql -I/usr/include/mariadb \
 	-I/usr/local/include/mysql -I/usr/local/include/mariadb \
-	-L/usr/local/lib/mariadb -lc -lm -lz -lssl -lmariadbclient
+	-L/usr/local/lib/mariadb \
+		-lpthread -lkrb5 -ldl -lc \
+		-l:libmariadbclient.a \
+		-l:libssl.a \
+		-l:libcrypto.a \
+		-l:libm.a \
+		-l:libz.a \
+		-fPIC -fPIE -pie
 
 FROM centos:6
 
