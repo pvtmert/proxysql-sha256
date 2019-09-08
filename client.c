@@ -167,12 +167,21 @@ tester(
 int
 main(const int argc, const char **argv) {
 	if(argc < 5) {
-		print(
-			stdout,
-			NULL,
-			"usage: %s <host> <port> <schema> <user> [pass [sql...]]",
-			argv[0]
-		);
+		print(stdout, NULL,
+			"usage:              %s <host> <port> <schema> <user> [pass [(-|sql|file) ...]]",
+			argv[0], NULL);
+		print(stdout, NULL, 
+			"eg (shell):         %s my.sql.com 3306 test root passwd -", 
+			argv[0], NULL);
+		print(stdout, NULL, 
+			"eg (exec):          %s my.sql.com 3306 test root passwd /path/to/file", 
+			argv[0], NULL);
+		print(stdout, NULL, 
+			"eg (inline):        %s my.sql.com 3306 test root passwd 'select 1;'", 
+			argv[0], NULL);
+		print(stdout, NULL, 
+			"eg (exec/relative): %s my.sql.com 3306 test root passwd ./dump.sql",
+			argv[0], NULL);
 		return 1;
 	}
 	const char  *pass = (argc > 5 && strlen(argv[5])) ? argv[5] : NULL;
