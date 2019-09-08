@@ -14,9 +14,9 @@ RUN cc -g -static -o client   client.c \
 ENTRYPOINT [ "gdb", "--args", "client" ]
 CMD        [ "host.docker.internal", "3306", "test", "user", "pass" ]
 
-FROM debian:sid
-RUN apt update
-RUN apt install -y libmysqlclient20
+FROM debian:latest
+#RUN apt update
+#RUN apt install -y libmysqlclient20
 COPY --from=builder /data/client /bin/mysqltest
 ENTRYPOINT [ "mysqltest" ]
 CMD        [ "host.docker.internal", "3306", "test", "user", "pass" ]
