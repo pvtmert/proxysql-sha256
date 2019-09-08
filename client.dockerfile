@@ -8,8 +8,9 @@ RUN apt install -y nano procps net-tools build-essential \
 
 WORKDIR /data
 COPY *.c makefile ./
-RUN cc -g -c -o client.o client.c 
-RUN cc -g    -o client   client.c -lmysqlclient
+RUN cc -g -c      -o client.o client.c 
+RUN cc -g -static -o client   client.c \
+	-lmysqlclient -lpthread -lstdc++ -lm -lz -ldl
 ENTRYPOINT [ "gdb", "--args", "client" ]
 CMD        [ "host.docker.internal", "3306", "test", "user", "pass" ]
 
