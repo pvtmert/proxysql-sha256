@@ -62,7 +62,6 @@ columnhelper(
 	unsigned chars = 0;
 	chars += printf(isheader ? "head: ^" : "_row: ^");
 	for(int j=0; j<ncols; j++) {
-		//tableprinthelper(width, colwidth, ln[j], j, n, row[j]);
 		chars += columnprint(
 			j, multiline,
 			(isheader) ? fields[j].name : row[j],
@@ -109,7 +108,8 @@ tester(
 	const char **commands
 ) {
 	MYSQL *con = mysql_init(NULL);
-	mysql_real_connect(con, host, user, pass, db, port, NULL, 0);
+	const char *schema = (db && strlen(db)) ? db : NULL;
+	mysql_real_connect(con, host, user, pass, schema, port, NULL, 0);
 	if(print(stdout, con, "isrv: %s", mysql_get_server_info(con))) goto quit;
 	if(print(stdout, con, "prot: %d", mysql_get_proto_info(con)))  goto quit;
 	if(print(stdout, con, "host: %s", mysql_get_host_info(con)))   goto quit;
@@ -118,7 +118,7 @@ tester(
 	if(print(stdout, con, "stat: %s", mysql_stat(con)))            goto quit;
 	if(print(stdout, con, "info: %s", mysql_info(con)))            goto quit;
 	tableprint(mysql_list_dbs(con, NULL), 0);
-	tableprint(mysql_list_tables(con, NULL), 0);
+	if(schema) tableprint(mysql_list_tables(con, NULL), 0);
 	while(commands && *commands) {
 		if('-' == **commands) {
 			size_t length = 999;
