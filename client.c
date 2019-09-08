@@ -77,21 +77,22 @@ columnhelper(
 void
 tableprint(MYSQL_RES *result, long rows) {
 	if(!result) {
-		printf("> %ld rows affected\n", rows);
+		if(rows > 0) printf("> %ld row(s) affected\n", rows);
 		return;
 	}
 	struct winsize termsz;
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &termsz);
 	unsigned long width = (termsz.ws_col ? termsz.ws_col : 80);
-	for(long i=0, colcnt=mysql_num_fields(result); i<mysql_num_rows(result); i++) {
-		MYSQL_ROW row = mysql_fetch_row(result);
+	for(long i=-1, ncols=mysql_num_fields(result); i<(long)mysql_num_rows(result); i++) {
 		MYSQL_FIELD *fields = mysql_fetch_fields(result);
 		unsigned long totalwidth = 0;
-		for(int j=0; j<colcnt; j++) 
+		for(int j=0; j<ncols; j++) 
 			totalwidth += MAX(fields[j].name_length, fields[j].max_length);
-		char multiline = (totalwidth > (width - 2*colcnt - 8));
-		if(!i) columnhelper(fields, row, colcnt, multiline, 1);
-		printf("", columnhelper(fields, row, colcnt, multiline, 0));
+		char multiline = (totalwidth > (width - 2*ncols - 8));
+		printf("", columnhelper(fields,
+			(i < 0) ? NULL : mysql_fetch_row(result), 
+			ncols, multiline, i < 0)
+		);
 		continue;
 	}
 	if(result) mysql_free_result(result);
