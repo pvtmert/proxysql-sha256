@@ -7,10 +7,9 @@
 #include <math.h>
 
 #include <sys/ioctl.h>
-#include <mysql/mysql.h>
+#include <mysql.h>
 
 #define MAX(x, y) ( ((x) > (y)) ? (x) : (y) )
-
 
 int
 print(FILE *fd, MYSQL *m, const char *fmt, ...) {
@@ -33,33 +32,98 @@ error(MYSQL *m) {
 	return err;
 }
 
-void tableprint(MYSQL_RES *result, long rows) {
+/*
+void
+tableprinthelper(
+	unsigned long width,
+	unsigned long colwidth,
+	unsigned long lnj,
+	unsigned long j,
+	unsigned long n,
+	const char *text,
+	...
+) {
+	int cmp = (MAX(colwidth, lnj * n) > width);
+	printf(
+		"%s[%*s]%s",
+		(!j && cmp) ? "\n" : "",
+		(int) MAX(colwidth, lnj) * (cmp ? 1 : -1),
+		text,
+		cmp ? "\n" : ""
+	);
+	return;
+}
+*/
+
+unsigned
+columnprint(
+	int index,
+	char lining,
+	const char *text,
+	unsigned long maxwidth,
+	enum enum_field_types type,
+	...
+) {
+	return printf( //IS_NUM(type)
+		"%s%*s%s",
+		(!index && lining) ? "\n " : (lining ? " " : "["),
+		(int) ((IS_NUM(type) && !lining) ? maxwidth : -maxwidth), text,
+		lining ? "\n" : "]",
+		NULL
+	);
+}
+
+unsigned
+columnhelper(
+	MYSQL_FIELD *fields,
+	MYSQL_ROW row,
+	unsigned long ncols,
+	char multiline,
+	char isheader,
+	...
+) {
+	unsigned chars = 0;
+	chars += printf(isheader ? "head: ^" : "_row: ^");
+	for(int j=0; j<ncols; j++) {
+		//tableprinthelper(width, colwidth, ln[j], j, n, row[j]);
+		chars += columnprint(
+			j, multiline,
+			(isheader) ? fields[j].name : row[j],
+			MAX(fields[j].name_length, fields[j].max_length),
+			fields[j].type,
+			NULL
+		);
+		continue;
+	}
+	return chars + printf("$\n");
+}
+
+void
+tableprint(MYSQL_RES *result, long rows) {
 	if(!result) {
 		return;
 	}
 	struct winsize termsz;
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &termsz);
 	unsigned long width = (termsz.ws_col ? termsz.ws_col : 80);
-	for(long i=0, n=mysql_num_fields(result); i<mysql_num_rows(result); i++) {
+	for(long i=0, colcnt=mysql_num_fields(result); i<mysql_num_rows(result); i++) {
 		MYSQL_ROW row = mysql_fetch_row(result);
-		unsigned long *ln = mysql_fetch_lengths(result);
+		//unsigned long *ln = mysql_fetch_lengths(result);
 		MYSQL_FIELD *fields = mysql_fetch_fields(result);
-		unsigned long colwidth = width/n - 2*n - 8;
-		if(!i) {
-			printf("head: ^");
-			for(int j=0; j<n; j++) {
-				//MYSQL_FIELD *field = mysql_fetch_field(result);
-				printf("[%*s]", -MAX(colwidth, ln[j]), fields[j].name);
-				continue;
-			}
-			printf("$\n");
-		}
-		printf("_row: ^");
-		for(int j=0; j<n; j++) {
-			printf("[%*s]", -MAX(colwidth, ln[j]), row[j]?row[j]:"NULL");
-			continue;
-		}
-		printf("$\n");
+		unsigned long totalwidth = 0;
+	//	for(int j=0; j<colcnt; j++) printf(
+	//		"_dbg: ^ %3d:%5d:%3d $\n",
+	//		ln[j], fields[j].length, fields[j].max_length
+	//	);
+		for(int j=0; j<colcnt; j++) 
+			totalwidth += MAX(fields[j].name_length, fields[j].max_length);
+		char multiline = (totalwidth > (width - 2*colcnt - 8));
+	//	printf(
+	//		"_dbg: ^ ln:%c w:%3d cnt:%3d tw:%3d $\n",
+	//		'0'+multiline, width, colcnt, totalwidth, NULL
+	//	);
+		if(!i) columnhelper(fields, row, colcnt, multiline, 1);
+		printf("", columnhelper(fields, row, colcnt, multiline, 0));
 		continue;
 	}
 	if(result) mysql_free_result(result);
@@ -84,12 +148,12 @@ tester(
 	if(print(stdout, con, "icli: %s", mysql_get_client_info()))    goto quit;
 	if(print(stdout, con, "stat: %s", mysql_stat(con)))            goto quit;
 	if(print(stdout, con, "info: %s", mysql_info(con)))            goto quit;
-	tableprint(mysql_list_processes(con), 0);
 	tableprint(mysql_list_dbs(con, NULL), 0);
 	tableprint(mysql_list_tables(con, NULL), 0);
+	//tableprint(mysql_list_processes(con), 0);
 	while(commands && *commands) {
 		if('-' == **commands) {
-			const size_t length = 999;
+			size_t length = 999;
 			FILE *in = stdin;
 			while(!feof(in)) {
 				char *buffer = (char*) calloc(length, sizeof(char));
@@ -101,13 +165,14 @@ tester(
 					break;
 				mysql_query(con, buffer);
 				tableprint(
-					mysql_store_result(con), 
+					mysql_store_result(con),
 					mysql_affected_rows(con)
 				);
 				error(con);
 				free(buffer);
 				continue;
 			}
+			print(stdout, con, "...done");
 			goto next;
 		}
 		print(stdout, con, "exec: %s", *commands);
