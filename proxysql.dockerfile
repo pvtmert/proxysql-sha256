@@ -1,4 +1,4 @@
-#!/usr/bin/env docker build --compress -t proxysql:centos -f
+#!/usr/bin/env docker build --compress -t pvtmert/proxysql:centos-6 -f
 
 FROM centos:6 as build
 
@@ -10,11 +10,17 @@ WORKDIR /build
 RUN cmake /src
 RUN make -j$(nproc)
 RUN make -j$(nproc) install
+WORKDIR /data
+COPY *.c ./
+RUN cc -o client client.c -std=c99 \
+	-I/usr/include/mysql -I/usr/include/mariadb \
+	-I/usr/local/include/mysql -I/usr/local/include/mariadb \
+	-L/usr/local/lib/mariadb -lc -lm -lz -lssl -lmariadbclient
 
 FROM centos:6
 
 WORKDIR /pkg
-COPY proxysql-2.0.6-1-dbg-centos67.x86_64.rpm      ./proxysql.rpm
+COPY proxysql-2.0.6-1-dbg-centos67.x86_64.rpm ./proxysql.rpm
 RUN yum install -y strace ./proxysql.rpm
 
 WORKDIR /var/lib/proxysql
@@ -27,6 +33,8 @@ WORKDIR /var/lib/proxysql
 #	/lib/mariadb/plugin/sha256_password.so
 
 COPY --from=build /usr/local/lib/mariadb /var/lib/proxysql/lib/mariadb
+COPY --from=build /usr/local/lib/mariadb /usr/local/lib/mariadb
+COPY --from=build /data/client           /bin/mysqltest
 
 #CMD strace -f -y -yy proxysql -f -D /var/lib/proxysql
 CMD proxysql -f -D /var/lib/proxysql
