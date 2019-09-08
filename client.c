@@ -121,12 +121,12 @@ tester(
 	tableprint(mysql_list_dbs(con, NULL), 0);
 	if(schema) tableprint(mysql_list_tables(con, NULL), 0);
 	while(commands && *commands) {
-		if('-' == **commands) {
+		if('-' == **commands || '/' == **commands || '.' == **commands) {
 			size_t length = 999;
-			FILE *in = stdin;
+			FILE *in = ('-' == **commands) ? stdin : fopen(*commands, "r");
 			while(!feof(in)) {
 				char *buffer = (char*) calloc(length, sizeof(char));
-				printf("sql> ");
+				if(in == stdin) printf("sql> ");
 				unsigned chars = getline(&buffer, &length, in);
 				if(!buffer || !*buffer || !strlen(buffer))
 					break;
@@ -139,7 +139,11 @@ tester(
 				free(buffer);
 				continue;
 			}
-			print(stdout, con, "...done");
+			if('-' == **commands) {
+				print(stdout, con, "...done");
+			} else {
+				fclose(in);
+			}
 			goto next;
 		}
 		print(stdout, con, "exec: %s", *commands);
