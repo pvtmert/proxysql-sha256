@@ -32,29 +32,6 @@ error(MYSQL *m) {
 	return err;
 }
 
-/*
-void
-tableprinthelper(
-	unsigned long width,
-	unsigned long colwidth,
-	unsigned long lnj,
-	unsigned long j,
-	unsigned long n,
-	const char *text,
-	...
-) {
-	int cmp = (MAX(colwidth, lnj * n) > width);
-	printf(
-		"%s[%*s]%s",
-		(!j && cmp) ? "\n" : "",
-		(int) MAX(colwidth, lnj) * (cmp ? 1 : -1),
-		text,
-		cmp ? "\n" : ""
-	);
-	return;
-}
-*/
-
 unsigned
 columnprint(
 	int index,
@@ -64,7 +41,7 @@ columnprint(
 	enum enum_field_types type,
 	...
 ) {
-	return printf( //IS_NUM(type)
+	return printf(
 		"%s%*s%s",
 		(!index && lining) ? "\n " : (lining ? " " : "["),
 		(int) ((IS_NUM(type) && !lining) ? maxwidth : -maxwidth), text,
@@ -101,6 +78,7 @@ columnhelper(
 void
 tableprint(MYSQL_RES *result, long rows) {
 	if(!result) {
+		printf("> %ld rows affected\n", rows);
 		return;
 	}
 	struct winsize termsz;
@@ -108,20 +86,11 @@ tableprint(MYSQL_RES *result, long rows) {
 	unsigned long width = (termsz.ws_col ? termsz.ws_col : 80);
 	for(long i=0, colcnt=mysql_num_fields(result); i<mysql_num_rows(result); i++) {
 		MYSQL_ROW row = mysql_fetch_row(result);
-		//unsigned long *ln = mysql_fetch_lengths(result);
 		MYSQL_FIELD *fields = mysql_fetch_fields(result);
 		unsigned long totalwidth = 0;
-	//	for(int j=0; j<colcnt; j++) printf(
-	//		"_dbg: ^ %3d:%5d:%3d $\n",
-	//		ln[j], fields[j].length, fields[j].max_length
-	//	);
 		for(int j=0; j<colcnt; j++) 
 			totalwidth += MAX(fields[j].name_length, fields[j].max_length);
 		char multiline = (totalwidth > (width - 2*colcnt - 8));
-	//	printf(
-	//		"_dbg: ^ ln:%c w:%3d cnt:%3d tw:%3d $\n",
-	//		'0'+multiline, width, colcnt, totalwidth, NULL
-	//	);
 		if(!i) columnhelper(fields, row, colcnt, multiline, 1);
 		printf("", columnhelper(fields, row, colcnt, multiline, 0));
 		continue;
@@ -140,17 +109,16 @@ tester(
 	const char **commands
 ) {
 	MYSQL *con = mysql_init(NULL);
-	//mysql_options(con, MYSQL_INIT_COMMAND, (void *)"show processlist;");
 	mysql_real_connect(con, host, user, pass, db, port, NULL, 0);
 	if(print(stdout, con, "isrv: %s", mysql_get_server_info(con))) goto quit;
 	if(print(stdout, con, "prot: %d", mysql_get_proto_info(con)))  goto quit;
 	if(print(stdout, con, "host: %s", mysql_get_host_info(con)))   goto quit;
+	if(print(stdout, con, " ssl: %s", mysql_get_ssl_cipher(con)))  goto quit;
 	if(print(stdout, con, "icli: %s", mysql_get_client_info()))    goto quit;
 	if(print(stdout, con, "stat: %s", mysql_stat(con)))            goto quit;
 	if(print(stdout, con, "info: %s", mysql_info(con)))            goto quit;
 	tableprint(mysql_list_dbs(con, NULL), 0);
 	tableprint(mysql_list_tables(con, NULL), 0);
-	//tableprint(mysql_list_processes(con), 0);
 	while(commands && *commands) {
 		if('-' == **commands) {
 			size_t length = 999;
@@ -158,12 +126,10 @@ tester(
 			while(!feof(in)) {
 				char *buffer = (char*) calloc(length, sizeof(char));
 				printf("sql> ");
-				getline(&buffer, &length, in);
-				//buffer[abs(strlen(buffer)-1)] = 0x00;
-				//printf("dbg-sql: %s\n", buffer);
+				unsigned chars = getline(&buffer, &length, in);
 				if(!buffer || !*buffer || !strlen(buffer))
 					break;
-				mysql_query(con, buffer);
+				mysql_real_query(con, buffer, chars);
 				tableprint(
 					mysql_store_result(con),
 					mysql_affected_rows(con)
