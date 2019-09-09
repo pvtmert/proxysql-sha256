@@ -10,10 +10,22 @@
 #include <sys/ioctl.h>
 #include <mysql.h>
 
+#ifdef READLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
+
 #define MAX(x, y) ( ((x) > (y)) ? (x) : (y) )
 
 const char*
 input(FILE *fp, size_t size, const char *fmt, ...) {
+	#ifdef READLINE
+	if(stdin == fp) {
+		char *line = readline(fmt);
+		add_history(line);
+		return line;
+	}
+	#endif
 	if(fmt && *fmt) {
 		va_list args;
 		va_start(args, fmt);
@@ -125,6 +137,7 @@ tester(
 	const char **commands,
 	...
 ) {
+	FILE *in = NULL;
 	MYSQL *con = mysql_init(NULL);
 	const char *schema = (db && strlen(db)) ? db : NULL;
 	mysql_real_connect(con, host, user, pass, schema, port, NULL, 0);
@@ -140,10 +153,12 @@ tester(
 	while(commands && *commands) {
 		if('-' == **commands || '/' == **commands || '.' == **commands) {
 			size_t length = 999;
-			FILE *in = ('-' == **commands) ? stdin : fopen(*commands, "r");
+			in = ('-' == **commands) ? stdin : fopen(*commands, "r");
 			while(!feof(in)) {
 				char *buffer = input(in, 999, (in == stdin) ? "sql> " : NULL);
-				printf("buffer: %p : %s\n", buffer, buffer);
+				#ifdef READLINE
+				if(!buffer) break;
+				#endif
 				if(!buffer || !*buffer) continue;
 				mysql_query(con, buffer);
 				tableprint(
@@ -172,6 +187,7 @@ tester(
 		goto next;
 	}
 	quit: {
+		if(in == stdin) return (mysql_close(con), 0);
 		int err = error(con);
 		mysql_close(con);
 		return err;
@@ -203,5 +219,8 @@ main(const int argc, const char **argv) {
 		(1 == strlen(argv[5]) && '-' == *argv[5]) ? input(stdin, 80, "pass:") : argv[5]
 	): NULL;
 	const char **cmds = (argc > 6) ? &(argv[6]) : NULL;
+	#ifdef READLINE
+	rl_bind_key('\t', rl_complete);
+	#endif
 	return tester(argv[1], atoi(argv[2]), argv[3], argv[4], pass, cmds);
 }
