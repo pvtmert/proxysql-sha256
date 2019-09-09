@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <math.h>
 
 #include <sys/ioctl.h>
@@ -21,8 +22,8 @@ input(FILE *fp, size_t size, const char *fmt, ...) {
 	}
 	char *buffer = (char*) calloc(size, sizeof(char));
 	unsigned chars = getline(&buffer, &size, fp);
-	if(chars && *buffer) buffer[chars-1] = 0x00;
-	return realloc(buffer, chars);
+	if(chars > 0 && *buffer) buffer[chars-1] = 0x00;
+	return ((chars > 0) ? realloc(buffer, chars) : (free(buffer), NULL));
 }
 
 int
