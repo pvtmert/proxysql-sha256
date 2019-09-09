@@ -3,15 +3,21 @@
 FROM debian:sid as builder
 
 RUN apt update
-RUN apt install -y nano procps net-tools build-essential \
-	libmysqlclient-dev gdb
+RUN apt install -y build-essential gdb \
+	libreadline-dev libmysqlclient-dev
 
 WORKDIR /data
 COPY *.c makefile ./
 RUN cc -v -g -c -o client.o client.c \
-	-I/usr/include/mysql -I/usr/include/mariadb
+	-I/usr/include/mysql -I/usr/include/mariadb \
+	-DREADLINE
 RUN cc -g -static -o client client.o \
-	-lmysqlclient -lpthread -lstdc++ -lm -lz -ldl
+	-lmysqlclient -lpthread -lreadline -lcurses -ltermcap -lstdc++ -ldl -lz -lm
+RUN true \
+	&& find /usr -iname "*readline*a" \
+	&& find /usr -iname "*curses*a" \
+	&& find /usr -iname "*term*a" \
+	&& true
 ENTRYPOINT [ "gdb", "--args", "client" ]
 CMD        [ "host.docker.internal", "3306", "test", "user", "pass", "-#" ]
 
