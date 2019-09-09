@@ -21,8 +21,8 @@ input(FILE *fp, size_t size, const char *fmt, ...) {
 	}
 	char *buffer = (char*) calloc(size, sizeof(char));
 	unsigned chars = getline(&buffer, &size, fp);
-	if(strlen(buffer)) buffer[strlen(buffer)-1] = 0x00;
-	return realloc(buffer, chars + 1);
+	if(chars && *buffer) buffer[chars-1] = 0x00;
+	return realloc(buffer, chars);
 }
 
 int
