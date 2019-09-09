@@ -56,6 +56,7 @@ columnprint(
 	enum enum_field_types type,
 	...
 ) {
+	maxwidth = ((!IS_NUM(type) && maxwidth < 6) ? 6 : maxwidth);
 	return printf(
 		"%s%*s%s",
 		(!index && lining) ? "\n " : (lining ? " " : "["),
@@ -121,7 +122,8 @@ tester(
 	const char *db,
 	const char *user,
 	const char *pass,
-	const char **commands
+	const char **commands,
+	...
 ) {
 	MYSQL *con = mysql_init(NULL);
 	const char *schema = (db && strlen(db)) ? db : NULL;
@@ -141,6 +143,7 @@ tester(
 			FILE *in = ('-' == **commands) ? stdin : fopen(*commands, "r");
 			while(!feof(in)) {
 				char *buffer = input(in, 999, (in == stdin) ? "sql> " : NULL);
+				printf("buffer: %p : %s\n", buffer, buffer);
 				if(!buffer || !*buffer) continue;
 				mysql_query(con, buffer);
 				tableprint(
