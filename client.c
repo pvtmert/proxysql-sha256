@@ -11,6 +11,20 @@
 
 #define MAX(x, y) ( ((x) > (y)) ? (x) : (y) )
 
+const char*
+input(FILE *fp, size_t size, const char *fmt, ...) {
+	if(fmt && *fmt) {
+		va_list args;
+		va_start(args, fmt);
+		vprintf(fmt, args);
+		va_end(args);
+	}
+	char *buffer = (char*) calloc(size, sizeof(char));
+	unsigned chars = getline(&buffer, &size, fp);
+	if(strlen(buffer)) buffer[strlen(buffer)-1] = 0x00;
+	return realloc(buffer, chars + 1);
+}
+
 int
 print(FILE *fd, MYSQL *m, const char *fmt, ...) {
 	va_list args;
@@ -114,7 +128,7 @@ tester(
 	if(print(stdout, con, "isrv: %s", mysql_get_server_info(con))) goto quit;
 	if(print(stdout, con, "prot: %d", mysql_get_proto_info(con)))  goto quit;
 	if(print(stdout, con, "host: %s", mysql_get_host_info(con)))   goto quit;
-	if(print(stdout, con, " ssl: %s", mysql_get_ssl_cipher(con)))  goto quit;
+	if(print(stdout, con, "_ssl: %s", mysql_get_ssl_cipher(con)))  goto quit;
 	if(print(stdout, con, "icli: %s", mysql_get_client_info()))    goto quit;
 	if(print(stdout, con, "stat: %s", mysql_stat(con)))            goto quit;
 	if(print(stdout, con, "info: %s", mysql_info(con)))            goto quit;
@@ -125,12 +139,9 @@ tester(
 			size_t length = 999;
 			FILE *in = ('-' == **commands) ? stdin : fopen(*commands, "r");
 			while(!feof(in)) {
-				char *buffer = (char*) calloc(length, sizeof(char));
-				if(in == stdin) printf("sql> ");
-				unsigned chars = getline(&buffer, &length, in);
-				if(!buffer || !*buffer || !strlen(buffer))
-					break;
-				mysql_real_query(con, buffer, chars);
+				char *buffer = input(in, 999, (in == stdin) ? "sql> " : NULL);
+				if(!buffer || !*buffer) continue;
+				mysql_query(con, buffer);
 				tableprint(
 					mysql_store_result(con),
 					mysql_affected_rows(con)
@@ -168,7 +179,7 @@ int
 main(const int argc, const char **argv) {
 	if(argc < 5) {
 		print(stdout, NULL,
-			"usage:              %s <host> <port> <schema> <user> [pass [(-|sql|file) ...]]",
+			"usage:              %s <host> <port> <schema> <user> [<pass|-> [(-|sql|file) ...]]",
 			argv[0], NULL);
 		print(stdout, NULL, 
 			"eg (shell):         %s my.sql.com 3306 test root passwd -", 
@@ -184,7 +195,9 @@ main(const int argc, const char **argv) {
 			argv[0], NULL);
 		return 1;
 	}
-	const char  *pass = (argc > 5 && strlen(argv[5])) ? argv[5] : NULL;
+	const char *pass = (argc > 5 && strlen(argv[5])) ? (
+		(1 == strlen(argv[5]) && '-' == *argv[5]) ? input(stdin, 80, "pass:") : argv[5]
+	): NULL;
 	const char **cmds = (argc > 6) ? &(argv[6]) : NULL;
 	return tester(argv[1], atoi(argv[2]), argv[3], argv[4], pass, cmds);
 }
