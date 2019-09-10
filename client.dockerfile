@@ -13,11 +13,6 @@ RUN cc -v -g -c -o client.o client.c \
 	-DREADLINE
 RUN cc -g -static -o client client.o \
 	-lmysqlclient -lpthread -lreadline -lcurses -ltermcap -lstdc++ -ldl -lz -lm
-RUN true \
-	&& find /usr -iname "*readline*a" \
-	&& find /usr -iname "*curses*a" \
-	&& find /usr -iname "*term*a" \
-	&& true
 ENTRYPOINT [ "gdb", "--args", "client" ]
 CMD        [ "host.docker.internal", "3306", "test", "user", "pass", "-#" ]
 
