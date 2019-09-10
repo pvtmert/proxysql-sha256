@@ -11,19 +11,21 @@ RUN cmake /src
 RUN make -j$(nproc)
 RUN make -j$(nproc) install
 WORKDIR /data
+RUN yum install -y glibc-devel-static glibc-static zlib-static ncurses-static readline-static openssl-static krb5-devel
 COPY *.c ./
-RUN yum install -y glibc-devel-static glibc-static libstdc++-static zlib-static openssl-static  krb5-static krb5-devel  krb5-devel-static openssl-static-devel
 RUN cc -o client client.c -std=c99 \
 	-I/usr/include/mysql -I/usr/include/mariadb \
 	-I/usr/local/include/mysql -I/usr/local/include/mariadb \
-	-L/usr/local/lib/mariadb \
-		-lpthread -lkrb5 -ldl -lc \
+	-L/usr/local/lib/mariadb -DREADLINE \
+		-ltermcap -lpthread -lkrb5 -ldl -lc \
 		-l:libmariadbclient.a \
+		-l:libreadline.a \
+		-l:libcurses.a \
 		-l:libssl.a \
 		-l:libcrypto.a \
 		-l:libm.a \
 		-l:libz.a \
-		-fPIC -fPIE -pie
+		-fPIC
 
 FROM centos:6
 
