@@ -10,19 +10,230 @@
 #include <sys/ioctl.h>
 #include <mysql.h>
 
+#define MAX(x, y) ( ((x) > (y)) ? (x) : (y) )
+
 #ifdef READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
-#endif
 
-#define MAX(x, y) ( ((x) > (y)) ? (x) : (y) )
+//typedef (char*) (rl_ac_generator_f)(const char*, int);
+
+volatile static MYSQL *glob_mysql_conn = NULL;
+
+#define SIZE(x) ( sizeof((x))/sizeof((x)[0]) )
+
+static const char *rl_ac_sql_commands[] = {
+	"databases",
+	"describe",
+	"database",
+	"truncate",
+	"tables",
+	"schema",
+	"having",
+	"create",
+	"insert",
+	"update",
+	"delete",
+	"select",
+	"grant",
+	"alter",
+	"table",
+	"limit",
+	"order",
+	"union",
+	"show",
+	"user",
+	"from",
+	"join",
+	"into",
+	"like",
+	"use",
+	"not",
+	"by",
+	//"\"\"",
+	//"''",
+	//"{}",
+	//"[]",
+	//"()",
+	//"--",
+	//"!=",
+	//"!"
+	//"=",
+	//"*",
+	//",",
+	//".",
+	//"%",
+	NULL,
+};
+
+void hexdump(void *ptr, size_t size) {
+	for(int i=0; i<size; i++) {
+		if(!(i%16)) printf("|\n %8x", i);
+		if(!(i% 8)) printf("|");
+		printf(" %2hhx ", *(char*) (ptr+i));
+		continue;
+	}
+	printf("|\n");
+	return;
+}
+
+void
+rl_ac_print(char **data) {
+	printf(">>\n");
+	while(data && *data) printf("#> %s\n", *(data++));
+	printf("<<\n");
+	return;
+}
+
+unsigned
+rl_ac_populate_size_helper(char **data) {
+	/*
+	unsigned count = 0;
+	while(data && *data) {
+		count += 1;
+		data  += 1;
+		continue;
+	}
+	return count;
+	*/
+	char **tmp = data;
+	while(tmp && *tmp && **(tmp++));
+	return (unsigned) (tmp-data);
+}
+
+char**
+rl_ac_populate_handle(
+	MYSQL *mysql,
+	MYSQL_RES *(*function)(MYSQL*, const char*, ...),
+	const char *query,
+	...
+) {
+	if(!mysql || !function) return NULL;
+	MYSQL_RES *results = function(mysql, query, NULL);
+	if(!results) return NULL;
+	int nrows = (int) mysql_num_rows(results);
+	char **buffer = (char**) calloc(1+nrows, sizeof(char*));
+	for(int i=0; i<nrows; i++) {
+		MYSQL_ROW row = mysql_fetch_row(results);
+		buffer[i] = strdup(row[0]);
+		continue;
+	}
+	mysql_free_result(results);
+	buffer[nrows] = NULL;
+	return buffer;
+}
+
+char**
+rl_ac_populate_columns(MYSQL *mysql, ...) {
+	if(!mysql) return NULL;
+	unsigned size = 0;
+	char **buffer = NULL;
+	MYSQL_RES *tables = mysql_list_tables(mysql, NULL);
+	if(!tables) return NULL;
+	const int ntables = (int) mysql_num_rows(tables);
+	char *names[ntables];
+	for(int i=0; i<ntables; i++) {
+		MYSQL_ROW row = mysql_fetch_row(tables);
+		names[i] = strdup(row[0]);
+		continue;
+	}
+	mysql_free_result(tables);
+	for(int i=0; i<ntables; i++) {
+		MYSQL_RES *result = mysql_list_fields(mysql, names[i], NULL);
+		MYSQL_FIELD *fields = mysql_fetch_fields(result);
+		const unsigned nfields = mysql_num_fields(result);
+		char **temp = realloc(buffer, (size + nfields) * sizeof(char*));
+		if(temp && *temp) {
+			for(int j=0; j<nfields; j++) {
+				temp[size+j] = strdup(fields[j].name);
+				continue;
+			}
+			size += nfields;
+			buffer = temp;
+		}
+		mysql_free_result(result);
+		continue;
+	}
+	buffer = realloc(buffer, (1+size) * sizeof(char*));
+	buffer[size] = NULL;
+	return buffer;
+}
+
+char**
+rl_ac_populate_all(MYSQL *mysql, const char **base) {
+	unsigned size = 0;
+	char **buffer = NULL;
+	char **results[4] = { base, NULL, NULL, NULL, };
+	if(mysql) {
+		results[1] = rl_ac_populate_handle(mysql, &mysql_list_dbs,    NULL);
+		results[2] = rl_ac_populate_handle(mysql, &mysql_list_tables, NULL);
+		results[3] = rl_ac_populate_columns(mysql, NULL);
+	}
+	for(int i=0; i<SIZE(results); i++) {
+		if(results[i]) {
+			unsigned count = rl_ac_populate_size_helper(results[i]);
+			char **temp = (char**) realloc(buffer, (size + count) * sizeof(char*));
+			if(temp && *temp) {
+				memset(&(temp[size]), 0, count * sizeof(char*));
+				memcpy(&(temp[size]), results[i], count * sizeof(char*));
+				size += count;
+				buffer = temp;
+			}
+		}
+		continue;
+	}
+	buffer = realloc(buffer, (1+size) * sizeof(char*));
+	buffer[size] = NULL;
+	//rl_ac_print(buffer);
+	return buffer;
+}
+
+void
+rl_ac_populate_free(char ***results) {
+	for(char **x=*results; x && *x; x++) {
+		free(*x);
+		continue;
+	}
+	free(*results);
+	free(results);
+	return;
+}
+
+char*
+rl_ac_cycle_fn(const char *txt, int state) {
+	static int index, len;
+	static char **cmds;
+	if(!state) {
+		index = 0;
+		len = strlen(txt);
+		cmds = rl_ac_populate_all(glob_mysql_conn, rl_ac_sql_commands);
+	}
+	char *str = NULL;
+	while((str = cmds[index++])) {
+		if(str && *str && !strncmp(str, txt, len)) {
+			char *value = strdup(str);
+			//rl_ac_populate_free(&cmds);
+			return value;
+		}
+	}
+	//rl_ac_populate_free(&cmds);
+	return NULL;
+}
+
+char**
+rl_ac_generator_fn(const char *txt, int state) {
+	rl_attempted_completion_over = 1;
+	return rl_completion_matches(txt, rl_ac_cycle_fn);
+}
+
+#endif
 
 const char*
 input(FILE *fp, size_t size, const char *fmt, ...) {
 	#ifdef READLINE
 	if(stdin == fp) {
 		char *line = readline(fmt);
-		add_history(line);
+		if(line && *line) add_history(line);
 		return line;
 	}
 	#endif
@@ -155,6 +366,9 @@ tester(
 			size_t length = 999;
 			in = ('-' == **commands) ? stdin : fopen(*commands, "r");
 			while(!feof(in)) {
+				#ifdef READLINE
+				if(in == stdin) glob_mysql_conn = con;
+				#endif
 				char *buffer = input(in, 999, (in == stdin) ? "sql> " : NULL);
 				#ifdef READLINE
 				if(!buffer) break;
@@ -221,6 +435,7 @@ main(const int argc, const char **argv) {
 	const char **cmds = (argc > 6) ? &(argv[6]) : NULL;
 	#ifdef READLINE
 	rl_bind_key('\t', rl_complete);
+	rl_attempted_completion_function = rl_ac_generator_fn;
 	#endif
 	return tester(argv[1], atoi(argv[2]), argv[3], argv[4], pass, cmds);
 }
