@@ -265,9 +265,7 @@ print(FILE *fd, MYSQL *m, const char *fmt, ...) {
 int
 error(MYSQL *m) {
 	int err = mysql_errno(m);
-	if(err) {
-		print(stderr, m, "[%6d]: %s", err, mysql_error(m));
-	}
+	if(err) print(stderr, m, "[%6d]: %s", err, mysql_error(m));
 	return err;
 }
 
@@ -297,10 +295,12 @@ columnhelper(
 	unsigned long ncols,
 	char multiline,
 	char isheader,
+	unsigned long xd,
+	unsigned long xi,
 	...
 ) {
 	unsigned chars = 0;
-	chars += printf(isheader ? "head: ^" : "_row: ^");
+	chars += printf(isheader ? "head:%*lu^" : "_row:%*lu^", xd, xi);
 	for(int j=0; j<ncols; j++) {
 		chars += columnprint(
 			j, multiline,
@@ -327,12 +327,21 @@ tableprint(MYSQL_RES *result, long rows) {
 	const unsigned long digit = floor(log10(abs(nrows?nrows:1)));
 	for(long i=-1, ncols=mysql_num_fields(result); i<(long)nrows; i++) {
 		MYSQL_FIELD *fields = mysql_fetch_fields(result);
-		unsigned long totalwidth = 1+digit;
-		for(int j=0; j<ncols; j++) 
+		unsigned long totalwidth = 8+digit;
+		for(int j=0; j<ncols; j++)
 			totalwidth += MAX(fields[j].name_length, fields[j].max_length);
-		printf("", columnhelper(fields,
-			(i < 0) ? NULL : mysql_fetch_row(result), 
-			ncols, (totalwidth > (width - 2*ncols - 8)), i < 0)
+		printf(
+			"",
+			columnhelper(
+				fields,
+				(i < 0) ? NULL : mysql_fetch_row(result), 
+				ncols, 
+				(totalwidth > (width - 2*ncols)),
+				i < 0,
+				1+digit,
+				1+i,
+				NULL
+			)
 		);
 		continue;
 	}
