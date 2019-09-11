@@ -8,6 +8,7 @@ admin_variables =
 	mysql_ifaces="0.0.0.0:6032"
 	hash_passwords=false
 	web_enabled=true
+	debug=true
 }
 
 mysql_variables =
@@ -35,10 +36,7 @@ mysql_variables =
 	commands_stats=true
 	sessions_sort=true
 	connect_retries_on_failure=10
-	#ssl_p2s_cert="/data/ssl/client-cert.pem"
-	#ssl_p2s_key="/data/ssl/client-key.pem"
-	#ssl_p2s_ca="/data/ssl/ca-cert.pem"
-	#have_ssl=true
+	have_ssl=true
 }
 
 mysql_servers =

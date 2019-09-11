@@ -23,6 +23,7 @@ volatile static MYSQL *glob_mysql_conn = NULL;
 #define SIZE(x) ( sizeof((x))/sizeof((x)[0]) )
 
 static const char *rl_ac_sql_commands[] = {
+	"processlist",
 	"databases",
 	"describe",
 	"database",
@@ -321,16 +322,17 @@ tableprint(MYSQL_RES *result, long rows) {
 	}
 	struct winsize termsz;
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &termsz);
-	unsigned long width = (termsz.ws_col ? termsz.ws_col : 80);
-	for(long i=-1, ncols=mysql_num_fields(result); i<(long)mysql_num_rows(result); i++) {
+	const unsigned long width = (termsz.ws_col ? termsz.ws_col : 80);
+	const unsigned long nrows = mysql_num_rows(result);
+	const unsigned long digit = floor(log10(abs(nrows?nrows:1)));
+	for(long i=-1, ncols=mysql_num_fields(result); i<(long)nrows; i++) {
 		MYSQL_FIELD *fields = mysql_fetch_fields(result);
-		unsigned long totalwidth = 0;
+		unsigned long totalwidth = 1+digit;
 		for(int j=0; j<ncols; j++) 
 			totalwidth += MAX(fields[j].name_length, fields[j].max_length);
-		char multiline = (totalwidth > (width - 2*ncols - 8));
 		printf("", columnhelper(fields,
 			(i < 0) ? NULL : mysql_fetch_row(result), 
-			ncols, multiline, i < 0)
+			ncols, (totalwidth > (width - 2*ncols - 8)), i < 0)
 		);
 		continue;
 	}

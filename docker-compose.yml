@@ -39,7 +39,7 @@ services:
   #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
   #     - ./:/data
 
-  mysql: # 5.6.37
+  mysql: # v 5.6.37
     image: percona:5.6.37
     restart: on-failure
     #command: mysqld --verbose --default-authentication-plugin=sha256_password
@@ -48,12 +48,10 @@ services:
     ports:
       - 3306:3306
     volumes:
-      - mysql_data:/var/lib/mysql
       - ./:/data
-      - ./keys/_pub.pem:/var/lib/mysql/public_key.pem:rw
-      - ./keys/_priv.pem:/var/lib/mysql/private_key.pem:rw
       - ./sha256.cnf:/etc/mysql/conf.d/sha256.cnf:ro
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - mysql_data:/var/lib/mysql
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_ROOT_PASSWORD: root
@@ -66,8 +64,11 @@ services:
       timeout: 10s
       retries: 3
 
-  proxy: # 1.4.5
-    image: proxysql:centos #:1.4.5
+  proxy: # v 1.4.5
+    build:
+      context: ./
+      dockerfile: ./proxysql.dockerfile
+    image: pvtmert/proxysql:centos-6
     restart: on-failure
     working_dir: /var/lib/proxysql
     depends_on:
@@ -80,12 +81,6 @@ services:
       - 16032:6032
       - 16033:6033
     volumes:
-      - proxy_data:/var/lib/proxysql
-      #- ./:/data
-      #- ./keys/_pub.pem:/public.pem:ro
-      #- ./lib:/usr/local/lib/plugin:ro
+      - ./:/data:ro
       - ./proxysql.cnf:/etc/proxysql.cnf:ro
-      #- ./lib/sha256_password.so:/lib/mariadb/plugin/sha256_password.so:ro
-      #- ./lib/libssl.so.1.0.0:/lib/x86_64-linux-gnu/libssl.so.1.0.0:ro
-      #- ./lib/libcrypto.so.1.0.0:/lib/x86_64-linux-gnu/libcrypto.so.1.0.0:ro
-      #- ./lib/sha256_password.so:/usr/local/lib/plugin/sha256_password.so:ro
+      - proxy_data:/var/lib/proxysql:rw

@@ -1,14 +1,6 @@
 [mysqld]
 
-#require_secure_transport = ON
 default-authentication-plugin=sha256_password
-#default-authentication-plugin=caching_sha2_password
-
-#ssl-cert=/data/keys/_cert.crt
-#ssl-key=/data/keys/_priv.pem
-#ssl-ca=/data/keys/_cert.crt
-#ssl-capath=/etc/ssl/certs
-
 sha256_password_private_key_path=/data/keys/_priv.pem
 sha256_password_public_key_path=/data/keys/_pub.pem
 
@@ -16,18 +8,7 @@ ssl-ca=/data/ssl/ca-cert.pem
 ssl-key=/data/ssl/server-key.pem
 ssl-cert=/data/ssl/server-cert.pem
 
-#debug=d,info,error,query:o,/tmp/mysqld.trace
-
-#log_error = 2
-#log_warnings = 2
-#log_error_verbosity = 3
-#stack-trace
-
 [client]
-#ssl-cert=/data/keys/_cert.crt
-#ssl-key=/data/keys/_priv.pem
-#ssl-ca=/data/keys/_cert.crt
-
 ssl-ca=/data/ssl/ca-cert.pem
 ssl-key=/data/ssl/client-key.pem
 ssl-cert=/data/ssl/client-cert.pem
