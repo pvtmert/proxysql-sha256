@@ -1,4 +1,4 @@
-#!/usr/bin/env docker-compose -p sql -f
+#!/usr/bin/env -S docker-compose -p sql -f
 
 version: "3.7"
 
@@ -20,7 +20,11 @@ services:
   #   tty: true
   #   stdin_open: true
   #   image: debian:stable
-  #   command: bash -c 'apt update && apt install -y openssl && sleep 30 && echo | openssl s_client -starttls mysql -connect $$HOST:$$PORT'
+  #   command: bash -c 'apt update
+  #            && apt install -y openssl
+  #            && sleep 30
+  #            && echo
+  #            \ | openssl s_client -starttls mysql -connect $$HOST:$$PORT'
   #   networks:
   #     - default
   #   environment:
@@ -54,12 +58,12 @@ services:
       - mysql_data:/var/lib/mysql
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: test
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: testdb
       MYSQL_PASSWORD: hello
       MYSQL_USER: hello
     healthcheck:
-      test: mysql -h127.0.0.1 -uroot -proot -e"show databases;"
+      test: mysql -P3306 -h127.0.0.1 -uroot -ptoor -e"show databases;"
       interval: 1m
       timeout: 10s
       retries: 3
@@ -68,7 +72,7 @@ services:
     build:
       context: ./
       dockerfile: ./proxysql.dockerfile
-    image: pvtmert/proxysql:centos-6
+    image: pvtmert/proxysql
     restart: on-failure
     working_dir: /var/lib/proxysql
     depends_on:

@@ -1,15 +1,15 @@
 [mysqld]
 
-default-authentication-plugin=sha256_password
-sha256_password_private_key_path=/data/keys/_priv.pem
-sha256_password_public_key_path=/data/keys/_pub.pem
+# default-authentication-plugin=sha256_password
+sha256_password_private_key_path=/data/ssl/mysql.key
+sha256_password_public_key_path=/data/ssl/mysql.pub
 
-ssl-ca=/data/ssl/ca-cert.pem
-ssl-key=/data/ssl/server-key.pem
-ssl-cert=/data/ssl/server-cert.pem
+ssl-ca=/data/ssl/mysql.crt
+ssl-key=/data/ssl/mysql.key
+ssl-cert=/data/ssl/mysql.crt
 
 [client]
-ssl-ca=/data/ssl/ca-cert.pem
-ssl-key=/data/ssl/client-key.pem
-ssl-cert=/data/ssl/client-cert.pem
+ssl-ca=/data/ssl/mysql.crt
+ssl-key=/data/ssl/mysql.key
+ssl-cert=/data/ssl/mysql.crt
 

@@ -273,6 +273,8 @@ unsigned
 columnprint(
 	int index,
 	char lining,
+	unsigned mfln,
+	const char *fln,
 	const char *text,
 	unsigned long maxwidth,
 	enum enum_field_types type,
@@ -280,8 +282,11 @@ columnprint(
 ) {
 	maxwidth = ((!IS_NUM(type) && maxwidth < 6) ? 6 : maxwidth);
 	return printf(
-		"%s%*s%s",
-		(!index && lining) ? "\n " : (lining ? " " : "["),
+		"%s%*s%s%*s%s",
+		(!index && lining) ? "\n " : (lining ? " "  : "["),
+		(!index && lining) ? mfln  : (lining ? mfln :  0),
+		(!index && lining) ? fln   : (lining ? fln  : ""),
+		(!index && lining) ? ":"   : (lining ? ":"  : ""),
 		(int) ((IS_NUM(type) && !lining) ? maxwidth : -maxwidth), text,
 		lining ? "\n" : "]",
 		NULL
@@ -299,11 +304,17 @@ columnhelper(
 	unsigned long xi,
 	...
 ) {
-	unsigned chars = 0;
+	unsigned chars = 0, mflength = 0;
 	chars += printf(isheader ? "head:%*lu^" : "_row:%*lu^", xd, xi);
 	for(int j=0; j<ncols; j++) {
+		if(fields[j].name_length > mflength) {
+			mflength = fields[j].name_length;
+		}
+		continue;
+	}
+	for(int j=0; j<ncols; j++) {
 		chars += columnprint(
-			j, multiline,
+			j, multiline, mflength, fields[j].name,
 			(isheader) ? fields[j].name : row[j],
 			MAX(fields[j].name_length, fields[j].max_length),
 			fields[j].type,

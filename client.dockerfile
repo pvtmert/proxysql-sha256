@@ -1,4 +1,4 @@
-#!/usr/bin/env docker build --compress -t pvtmert/mysql:client -f
+#!/usr/bin/env -S docker build --compress -t pvtmert/mysql:client -f
 
 FROM debian:sid as builder
 

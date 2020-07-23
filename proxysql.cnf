@@ -4,7 +4,7 @@ datadir="/var/lib/proxysql"
 
 admin_variables =
 {
-	admin_credentials="admin:admin;radmin:radmin"
+	admin_credentials="admin:admin"
 	mysql_ifaces="0.0.0.0:6032"
 	hash_passwords=false
 	web_enabled=true
@@ -17,7 +17,7 @@ mysql_variables =
 	max_connections=2048
 	default_query_delay=0
 	default_query_timeout=36000000
-	have_compress=false
+	have_compress=true
 	poll_timeout=2000
 	interfaces="0.0.0.0:6033"
 	default_schema="information_schema"
@@ -25,7 +25,7 @@ mysql_variables =
 	server_version="5.6.37"
 	connect_timeout_server=3000
 	monitor_username="root"
-	monitor_password="root"
+	monitor_password="toor"
 	monitor_history=600000
 	monitor_connect_interval=1000
 	monitor_ping_interval=1000
@@ -60,6 +60,6 @@ mysql_users:
 		password = "pass"
 		default_hostgroup = 0
 		max_connections=1000
-		default_schema="test"
+		default_schema="testdb"
 	}
 )
